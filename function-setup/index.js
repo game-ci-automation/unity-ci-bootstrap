@@ -1,5 +1,19 @@
-module.exports = async function (context, req) {
+import { createVM } from '../lib/vmManager.js';
+
+export default async function (context, req) {
     context.log('Setup function called');
+
+    // Create VM ID ( using time-stamp for testing )
+    const vmId = `vm-${Date.now()}`;
+
+    // Create VM Start (async, Not waiting)
+    createVM(vmId)
+        .then(vm => {
+        context.log('VM created started:', vm);
+    })
+        .catch(err => {
+            context.log.error('VM created failed:', err);
+    });
 
     const html = `
 <!DOCTYPE html>
@@ -33,6 +47,7 @@ module.exports = async function (context, req) {
     <div class="status">
         <h2>Status: VM Creating</h2>
         <p class="loading">⏳ Provisioning virtual machine...</p>
+        <p>VM ID: <span class="vm-id">${vmId}</span></p>
         <p>This may take 5-8 minutes. Please wait.</p>
     </div>
 

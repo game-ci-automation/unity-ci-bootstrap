@@ -1,0 +1,49 @@
+# Azure Functions
+local.settings.json
+.azure/
+.vscode/
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+.python_packages/
+
+# Design documents (internal)
+DESIGN.md
+DESIGN.ko.md
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+../.idea/
+*.swp
+*.swo
+*~
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Build
+dist/
+build/
+*.js.map
+
+# Temporary files
+tmp/
+temp/

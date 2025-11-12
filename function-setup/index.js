@@ -6,13 +6,28 @@ export default async function (context, req) {
     // Create VM ID ( using time-stamp for testing )
     const vmId = `vm-${Date.now()}`;
 
+    // Get subscription ID from environment
+    const subscriptionId = process.env.AZURE_SUBSCRIPTION_ID;
+
+    if (!subscriptionId) {
+        context.log.error('AZURE_SUBSCRIPTION_ID not configured');
+        context.res = {
+            status: 500,
+            headers: {
+                'Content-Type': 'text/html; charset=utf-8'
+            },
+            body: '<h1>Server Error</h1><p>Missing Azure subscription ID configuration</p>'
+        };
+        return;
+    }
+
     // Create VM Start (async, Not waiting)
-    createVM(vmId)
+    createVM(vmId, subscriptionId)
         .then(vm => {
-        context.log('VM created started:', vm);
+        context.log('VM creation started:', vm);
     })
         .catch(err => {
-            context.log.error('VM created failed:', err);
+            context.log.error('VM creation failed:', err);
     });
 
     const html = `

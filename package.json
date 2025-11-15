@@ -15,6 +15,8 @@
   },
   "dependencies": {
     "@azure/arm-compute": "^23.1.0",
+    "@azure/arm-network": "^34.1.0",
+    "@azure/arm-resources": "^7.0.0",
     "@azure/identity": "^4.13.0"
   }
 }

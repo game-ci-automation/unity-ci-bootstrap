@@ -1,4 +1,4 @@
-import { createVM } from '../lib/vmManager.js';
+import { provisionVM } from '../lib/vmManager.js';
 
 export default async function (context, req) {
     context.log('Setup function called');
@@ -22,7 +22,7 @@ export default async function (context, req) {
     }
 
     // Create VM Start (async, Not waiting)
-    createVM(vmId, subscriptionId)
+    provisionVM(vmId, subscriptionId)
         .then(vm => {
         context.log('VM creation started:', vm);
     })

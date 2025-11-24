@@ -1,0 +1,36 @@
+#cloud-config
+
+package_update: true
+
+packages:
+  - xfce4
+  - xfce4-goodies
+  - tigervnc-standalone-server
+  - novnc
+  - websockify
+
+write_files:
+  - path: /home/{{USERNAME}}/.vnc/xstartup
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      unset SESSION_MANAGER
+      unset DBUS_SESSION_BUS_ADDRESS
+      xrdb $HOME/.Xresources
+      startxfce4 &
+
+runcmd:
+  # Create .vnc directory
+  - mkdir -p /home/{{USERNAME}}/.vnc
+  - chown -R {{USERNAME}}:{{USERNAME}} /home/{{USERNAME}}/.vnc
+
+  # Set VNC password
+  - echo '{{VNC_PASSWORD}}' | vncpasswd -f > /home/{{USERNAME}}/.vnc/passwd
+  - chmod 600 /home/{{USERNAME}}/.vnc/passwd
+  - chown {{USERNAME}}:{{USERNAME}} /home/{{USERNAME}}/.vnc/passwd
+
+  # Start VNC server on display :1 (port 5901)
+  - su - {{USERNAME}} -c 'vncserver :1 -geometry 1280x800 -depth 24'
+
+  # Start noVNC (websocket proxy on port 6080 -> VNC port 5901)
+  - websockify --web=/usr/share/novnc 6080 localhost:5901 &

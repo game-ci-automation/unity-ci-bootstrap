@@ -16,10 +16,12 @@ write_files:
       #!/bin/bash
       unset SESSION_MANAGER
       unset DBUS_SESSION_BUS_ADDRESS
-      xrdb $HOME/.Xresources
-      startxfce4 &
+      exec startxfce4
 
 runcmd:
+  # Fix home directory ownership (cloud-init runs as root)
+  - chown -R {{USERNAME}}:{{USERNAME}} /home/{{USERNAME}}
+
   # Create .vnc directory
   - mkdir -p /home/{{USERNAME}}/.vnc
   - chown -R {{USERNAME}}:{{USERNAME}} /home/{{USERNAME}}/.vnc

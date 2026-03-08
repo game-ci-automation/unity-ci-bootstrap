@@ -1,0 +1,156 @@
+#cloud-config
+
+# Unity CI Enabler — VM Setup Script
+# Runs once on first boot after Terraform provisioning.
+# Sets up a browser-accessible Ubuntu desktop with Docker, noVNC, Git,
+# Unity Hub pre-installed, and a desktop shortcut for easy launch.
+# noVNC starts last — when port 6080 is reachable, setup is complete.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  # Desktop environment (lightweight)
+  - xfce4
+  - xfce4-goodies
+  # VNC + browser access
+  - x11vnc
+  - novnc
+  - websockify
+  # Docker dependencies
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  # Utilities
+  - git
+  - wget
+  - fuse
+
+runcmd:
+  # --- Docker Engine ---
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io
+  - usermod -aG docker azureuser
+  - systemctl enable docker
+  - systemctl start docker
+
+  # --- Xvfb virtual display service ---
+  - apt-get install -y xvfb
+  - |
+    cat > /etc/systemd/system/xvfb.service << 'EOF'
+    [Unit]
+    Description=Xvfb Virtual Display
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=azureuser
+    ExecStart=/usr/bin/Xvfb :1 -screen 0 1920x1080x24
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+  # --- XFCE4 desktop session service ---
+  - |
+    cat > /etc/systemd/system/xfce4-session.service << 'EOF'
+    [Unit]
+    Description=XFCE4 Desktop Session
+    After=xvfb.service
+    Requires=xvfb.service
+
+    [Service]
+    Type=simple
+    User=azureuser
+    Environment=DISPLAY=:1
+    ExecStart=/usr/bin/startxfce4
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+  # --- x11vnc service ---
+  - |
+    cat > /etc/systemd/system/x11vnc.service << 'EOF'
+    [Unit]
+    Description=x11vnc VNC Server
+    After=xfce4-session.service
+
+    [Service]
+    Type=simple
+    User=azureuser
+    Environment=DISPLAY=:1
+    ExecStart=/usr/bin/x11vnc -display :1 -nopw -listen localhost -xkb -forever
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+  # --- noVNC websockify service (port 6080) ---
+  - |
+    cat > /etc/systemd/system/novnc.service << 'EOF'
+    [Unit]
+    Description=noVNC WebSocket Proxy
+    After=x11vnc.service
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/bin/websockify --web /usr/share/novnc 6080 localhost:5900
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+  # --- noVNC setup ---
+  - mkdir -p /etc/novnc
+  - ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+
+  # --- Unity Hub (official apt repo) ---
+  - install -d /etc/apt/keyrings
+  - curl -fsSL https://hub.unity3d.com/linux/keys/public | gpg --dearmor -o /etc/apt/keyrings/unityhub.gpg
+  - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/unityhub.gpg] https://hub.unity3d.com/linux/repos/deb stable main" > /etc/apt/sources.list.d/unityhub.list
+  - apt-get update
+  - apt-get install -y unityhub
+
+  # --- Desktop folder and Unity Hub shortcut ---
+  - mkdir -p /home/azureuser/Desktop
+  - |
+    cat > /home/azureuser/Desktop/Unity\ Hub.desktop << 'EOF'
+    [Desktop Entry]
+    Version=1.0
+    Type=Application
+    Name=Unity Hub
+    Exec=env DISPLAY=:1 /usr/bin/unityhub --no-sandbox --disable-gpu
+    Icon=unityhub
+    Terminal=false
+    Categories=Development;
+    EOF
+  - chmod +x /home/azureuser/Desktop/Unity\ Hub.desktop
+  - chown -R azureuser:azureuser /home/azureuser/Desktop
+
+  # --- game-ci downloader CLI ---
+  # TODO: Replace with actual GitHub Releases URL after first release is published
+  # - wget -q "https://github.com/game-ci-automation/unity-ci-enabler/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
+  # - chmod +x /home/azureuser/Desktop/downloader
+  # - chown azureuser:azureuser /home/azureuser/Desktop/downloader
+
+  # --- Enable and start display services (noVNC last = ready signal) ---
+  - systemctl daemon-reload
+  - systemctl enable xvfb xfce4-session x11vnc novnc
+  - systemctl start xvfb
+  - sleep 2
+  - systemctl start xfce4-session
+  - sleep 3
+  - systemctl start x11vnc
+  - sleep 2
+  - systemctl start novnc
+
+final_message: "Unity CI Enabler VM setup complete. Connect via noVNC at http://<public-ip>:6080"

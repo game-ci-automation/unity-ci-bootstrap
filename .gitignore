@@ -44,7 +44,13 @@ coverage/
 dist/
 build/
 *.js.map
+*.exe
 
 # Temporary files
 tmp/
 temp/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*

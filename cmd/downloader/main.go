@@ -76,7 +76,12 @@ func readLicenseFile() (string, error) {
 }
 
 func licensePaths() []string {
-	switch runtime.GOOS {
+	home, _ := os.UserHomeDir()
+	return licensePathsForOS(runtime.GOOS, home)
+}
+
+func licensePathsForOS(goos, homeDir string) []string {
+	switch goos {
 	case "windows":
 		return []string{
 			`C:\ProgramData\Unity\Unity_lic.ulf`,
@@ -88,11 +93,9 @@ func licensePaths() []string {
 			"/Library/Application Support/Unity/Unity_lic.xml",
 		}
 	default: // linux
-		home, _ := os.UserHomeDir()
-		base := filepath.Join(home, ".local/share/unity3d/Unity")
 		return []string{
-			filepath.Join(base, "Unity_lic.ulf"),
-			filepath.Join(base, "Unity_lic.xml"),
+			filepath.Join(homeDir, ".config/unity3d/Unity/licenses/UnityEntitlementLicense.xml"), // Unity 6+
+			filepath.Join(homeDir, ".local/share/unity3d/Unity/Unity_lic.ulf"),                   // pre-Unity 6
 		}
 	}
 }

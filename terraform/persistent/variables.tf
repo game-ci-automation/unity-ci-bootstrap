@@ -15,3 +15,9 @@ variable "key_vault_name" {
   type        = string
   default     = "unity-ci-kv"
 }
+
+variable "function_app_name" {
+  description = "Name of the Azure Function App"
+  type        = string
+  default     = "unity-ci-func"
+}

@@ -113,6 +113,12 @@ runcmd:
   - mkdir -p /etc/novnc
   - ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
+  # --- GitHub CLI ---
+  - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+  - apt-get update
+  - apt-get install -y gh
+
   # --- Unity Hub (official apt repo) ---
   - install -d /etc/apt/keyrings
   - curl -fsSL https://hub.unity3d.com/linux/keys/public | gpg --dearmor -o /etc/apt/keyrings/unityhub.gpg
@@ -135,6 +141,14 @@ runcmd:
     EOF
   - chmod +x /home/azureuser/Desktop/Unity\ Hub.desktop
   - chown -R azureuser:azureuser /home/azureuser/Desktop
+
+  # --- Environment variables for downloader ---
+  - |
+    cat > /home/azureuser/.unity-ci-env << 'ENVEOF'
+    FUNCTION_URL=${function_app_url}
+    REPO_URL=${repo_url}
+    ENVEOF
+  - chown azureuser:azureuser /home/azureuser/.unity-ci-env
 
   # --- game-ci downloader CLI ---
   # TODO: Replace with actual GitHub Releases URL after first release is published

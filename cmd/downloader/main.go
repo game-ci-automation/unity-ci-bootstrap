@@ -11,17 +11,37 @@ import (
 
 	"github.com/game-ci-automation/unity-ci-enabler/internal/azure"
 	"github.com/game-ci-automation/unity-ci-enabler/internal/docker"
+	"github.com/game-ci-automation/unity-ci-enabler/internal/github"
 	"github.com/game-ci-automation/unity-ci-enabler/internal/validator"
 )
 
 func main() {
-	version := flag.String("version", "", "Unity version (e.g. 2022.3.50f1)")
+	version := flag.String("version", "", "Unity version (e.g. 2022.3.50f1) — auto-detected from repo if omitted")
 	platform := flag.String("platform", "", "Target platform (e.g. WebGL, Android, iOS, StandaloneLinux64, StandaloneWindows64)")
+	repoURL := flag.String("repo", os.Getenv("REPO_URL"), "GitHub repository URL (defaults to REPO_URL env var)")
 	flag.Parse()
 
-	if *version == "" || *platform == "" {
+	if *platform == "" {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// Auto-detect Unity version from GitHub repo if not provided
+	if *version == "" {
+		if *repoURL == "" {
+			log.Fatal("--version or --repo (or REPO_URL env var) is required")
+		}
+		owner, repo, err := github.ParseRepoOwnerName(*repoURL)
+		if err != nil {
+			log.Fatalf("invalid repo URL: %v", err)
+		}
+		ghClient := github.NewClient()
+		detected, err := ghClient.FetchUnityVersion(owner, repo)
+		if err != nil {
+			log.Fatalf("failed to auto-detect Unity version: %v", err)
+		}
+		*version = detected
+		fmt.Printf("Auto-detected Unity version: %s\n", *version)
 	}
 
 	// Validate Unity version and platform

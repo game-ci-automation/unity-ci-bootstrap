@@ -33,3 +33,13 @@ variable "admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "function_app_url" {
+  description = "URL of the Azure Function App (from persistent output)"
+  type        = string
+}
+
+variable "repo_url" {
+  description = "GitHub repository URL (e.g. https://github.com/user/repo)"
+  type        = string
+}

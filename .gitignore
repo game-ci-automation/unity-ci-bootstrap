@@ -54,3 +54,4 @@ temp/
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfvars

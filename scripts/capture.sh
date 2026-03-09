@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Prevent Git Bash (MINGW64) from converting /subscriptions/... to Windows paths
+export MSYS_NO_PATHCONV=1
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 
@@ -27,12 +30,12 @@ if [ -z "$RG" ] || [ -z "$GALLERY" ] || [ -z "$IMAGE_DEF" ]; then
   exit 1
 fi
 
-echo "=== Step 1/4: Deallocate VM ==="
+echo "=== Step 1/5: Deallocate VM ==="
 az vm deallocate --resource-group "$RG" --name "$VM_NAME"
 echo "VM deallocated."
 
 echo ""
-echo "=== Step 2/4: Capture VM image ==="
+echo "=== Step 2/5: Capture VM image ==="
 VMID=$(az vm show -g "$RG" -n "$VM_NAME" --query id -o tsv)
 az sig image-version create \
   --resource-group "$RG" \
@@ -43,12 +46,22 @@ az sig image-version create \
 echo "Image captured to gallery."
 
 echo ""
-echo "=== Step 3/4: Delete VM ==="
+echo "=== Step 3/5: Delete VM ==="
+OS_DISK=$(az vm show -g "$RG" -n "$VM_NAME" --query "storageProfile.osDisk.managedDisk.id" -o tsv)
 az vm delete --resource-group "$RG" --name "$VM_NAME" --yes
 echo "VM deleted."
 
 echo ""
-echo "=== Step 4/4: Destroy ephemeral infrastructure ==="
+echo "=== Step 4/5: Delete OS disk ==="
+if [ -n "$OS_DISK" ]; then
+  az disk delete --ids "$OS_DISK" --yes
+  echo "OS disk deleted."
+else
+  echo "No OS disk found (may have been deleted with VM)."
+fi
+
+echo ""
+echo "=== Step 5/5: Destroy ephemeral infrastructure ==="
 cd "$REPO_ROOT/terraform/ephemeral"
 terraform destroy -auto-approve -var="github_token=dummy"
 echo "Ephemeral resources destroyed."

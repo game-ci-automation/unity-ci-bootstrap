@@ -161,6 +161,39 @@ runcmd:
   - chmod +x /home/azureuser/Desktop/downloader
   - chown azureuser:azureuser /home/azureuser/Desktop/downloader
 
+  # --- Bootstrap runner script (waits for license, then runs downloader) ---
+  - |
+    cat > /home/azureuser/Desktop/run-bootstrap.sh << 'SCRIPTEOF'
+    #!/usr/bin/env bash
+    source ~/.unity-ci-env
+
+    echo "========================================"
+    echo "  Unity CI Bootstrap"
+    echo "========================================"
+    echo ""
+    echo "Step 1: Open Unity Hub (desktop icon) and activate your license."
+    echo "Step 2: Once done, come back here and press Enter."
+    echo ""
+    read -p "Press Enter after Unity license is activated..."
+    echo ""
+    echo "Starting downloader..."
+    ~/Desktop/downloader
+    SCRIPTEOF
+  - chmod +x /home/azureuser/Desktop/run-bootstrap.sh
+  - chown azureuser:azureuser /home/azureuser/Desktop/run-bootstrap.sh
+
+  # --- Auto-open terminal with bootstrap script on desktop login ---
+  - mkdir -p /home/azureuser/.config/autostart
+  - |
+    cat > /home/azureuser/.config/autostart/bootstrap-terminal.desktop << 'EOF'
+    [Desktop Entry]
+    Type=Application
+    Name=Bootstrap Terminal
+    Exec=xfce4-terminal --maximize -e "bash /home/azureuser/Desktop/run-bootstrap.sh"
+    X-GNOME-Autostart-enabled=true
+    EOF
+  - chown -R azureuser:azureuser /home/azureuser/.config
+
   # --- Enable and start display services (noVNC last = ready signal) ---
   - systemctl daemon-reload
   - systemctl enable xvfb xfce4-session x11vnc novnc

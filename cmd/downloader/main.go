@@ -129,26 +129,14 @@ func main() {
 		fmt.Println("Unity Hub uninstalled.")
 	}
 
-	// Print image capture instructions
-	rg := os.Getenv("RESOURCE_GROUP_NAME")
-	gallery := os.Getenv("IMAGE_GALLERY_NAME")
-	imageDef := os.Getenv("IMAGE_DEFINITION_NAME")
-
+	// Print next step
 	fmt.Println()
 	fmt.Println("=== Bootstrap Complete ===")
-	fmt.Println("Run these commands from your local machine:")
+	fmt.Println("Run this from your local machine (repo root):")
 	fmt.Println()
-	fmt.Printf("  az vm deallocate --resource-group %s --name unity-ci-vm\n", rg)
+	fmt.Println("  bash scripts/capture.sh")
 	fmt.Println()
-	fmt.Printf("  az sig image-version create \\\n")
-	fmt.Printf("    --resource-group %s \\\n", rg)
-	fmt.Printf("    --gallery-name %s \\\n", gallery)
-	fmt.Printf("    --gallery-image-definition %s \\\n", imageDef)
-	fmt.Printf("    --gallery-image-version 1.0.0 \\\n")
-	fmt.Printf("    --virtual-machine $(az vm show -g %s -n unity-ci-vm --query id -o tsv)\n", rg)
-	fmt.Println()
-	fmt.Println("Then destroy the ephemeral VM:")
-	fmt.Println("  cd terraform/ephemeral && terraform destroy")
+	fmt.Println("This will: deallocate VM → capture image → delete VM → destroy ephemeral infra")
 }
 
 func generateSecret(n int) (string, error) {

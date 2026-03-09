@@ -48,6 +48,7 @@ resource "azurerm_shared_image" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   os_type             = "Linux"
+  hyper_v_generation  = "V2"
   specialized         = true
 
   identifier {

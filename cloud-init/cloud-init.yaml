@@ -145,14 +145,14 @@ runcmd:
   # --- Environment variables for downloader ---
   - |
     cat > /home/azureuser/.unity-ci-env << 'ENVEOF'
-    FUNCTION_URL=${function_app_url}
-    REPO_URL=${repo_url}
-    PLATFORM=${platform}
-    KEY_VAULT_NAME=${key_vault_name}
-    RESOURCE_GROUP_NAME=${resource_group_name}
-    IMAGE_GALLERY_NAME=${image_gallery_name}
-    IMAGE_DEFINITION_NAME=${image_definition_name}
-    GH_TOKEN=${github_token}
+    export FUNCTION_URL=${function_app_url}
+    export REPO_URL=${repo_url}
+    export PLATFORM=${platform}
+    export KEY_VAULT_NAME=${key_vault_name}
+    export RESOURCE_GROUP_NAME=${resource_group_name}
+    export IMAGE_GALLERY_NAME=${image_gallery_name}
+    export IMAGE_DEFINITION_NAME=${image_definition_name}
+    export GH_TOKEN=${github_token}
     ENVEOF
   - chown azureuser:azureuser /home/azureuser/.unity-ci-env
 

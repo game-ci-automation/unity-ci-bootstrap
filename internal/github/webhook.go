@@ -34,8 +34,13 @@ func (c *Client) RegisterWebhook(owner, repo, functionAppURL, secret string) err
 	}
 
 	// Create webhook
-	body := fmt.Sprintf(`{"config":{"url":"%s","content_type":"json","secret":"%s"},"events":["push"],"active":true}`, hookURL, secret)
-	_, err = c.gh.Run("api", endpoint, "--method", "POST", "--input", "-", "--raw-field", body)
+	_, err = c.gh.Run("api", endpoint, "--method", "POST",
+		"-f", fmt.Sprintf("config[url]=%s", hookURL),
+		"-f", "config[content_type]=json",
+		"-f", fmt.Sprintf("config[secret]=%s", secret),
+		"-f", "events[]=push",
+		"-F", "active=true",
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create webhook: %w", err)
 	}

@@ -157,7 +157,7 @@ runcmd:
   - chown azureuser:azureuser /home/azureuser/.unity-ci-env
 
   # --- game-ci downloader CLI ---
-  - wget -q "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
+  - wget "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
   - chmod +x /home/azureuser/Desktop/downloader
   - chown azureuser:azureuser /home/azureuser/Desktop/downloader
 

@@ -3,7 +3,7 @@ package docker_test
 import (
 	"testing"
 
-	"github.com/game-ci-automation/unity-ci-enabler/internal/docker"
+	"github.com/game-ci-automation/unity-ci-bootstrap/internal/docker"
 )
 
 func TestResolveImageTag(t *testing.T) {

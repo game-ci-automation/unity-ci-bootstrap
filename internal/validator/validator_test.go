@@ -3,7 +3,7 @@ package validator_test
 import (
 	"testing"
 
-	"github.com/game-ci-automation/unity-ci-enabler/internal/validator"
+	"github.com/game-ci-automation/unity-ci-bootstrap/internal/validator"
 )
 
 func TestValidateUnityVersion(t *testing.T) {

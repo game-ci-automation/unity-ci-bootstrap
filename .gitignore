@@ -45,6 +45,8 @@ dist/
 build/
 *.js.map
 *.exe
+/downloader
+/downloader-*
 
 # Temporary files
 tmp/

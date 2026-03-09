@@ -48,15 +48,27 @@ read_env() {
 ADMIN_PASSWORD="$(read_env ADMIN_PASSWORD)"
 REPO_URL="$(read_env REPO_URL)"
 FUNCTION_APP_URL="$(read_env FUNCTION_APP_URL)"
+PLATFORM="$(read_env PLATFORM)"
+KEY_VAULT_NAME="$(read_env KEY_VAULT_NAME)"
+RESOURCE_GROUP_NAME="$(read_env RESOURCE_GROUP_NAME)"
+IMAGE_GALLERY_NAME="$(read_env IMAGE_GALLERY_NAME)"
+IMAGE_DEFINITION_NAME="$(read_env IMAGE_DEFINITION_NAME)"
+GITHUB_TOKEN="$(read_env GITHUB_TOKEN)"
 
-if [ -z "$ADMIN_PASSWORD" ] || [ -z "$REPO_URL" ] || [ -z "$FUNCTION_APP_URL" ]; then
-  echo "Warning: ADMIN_PASSWORD, REPO_URL, or FUNCTION_APP_URL is empty in .env"
+if [ -z "$ADMIN_PASSWORD" ] || [ -z "$REPO_URL" ] || [ -z "$FUNCTION_APP_URL" ] || [ -z "$PLATFORM" ]; then
+  echo "Warning: ADMIN_PASSWORD, REPO_URL, FUNCTION_APP_URL, or PLATFORM is empty in .env"
   echo "Skipping terraform.tfvars generation. Fill in .env and run again."
 else
   cat > "$TFVARS_FILE" << EOF
-admin_password   = "$ADMIN_PASSWORD"
-repo_url         = "$REPO_URL"
-function_app_url = "$FUNCTION_APP_URL"
+admin_password        = "$ADMIN_PASSWORD"
+repo_url              = "$REPO_URL"
+function_app_url      = "$FUNCTION_APP_URL"
+platform              = "$PLATFORM"
+key_vault_name        = "$KEY_VAULT_NAME"
+resource_group_name   = "$RESOURCE_GROUP_NAME"
+image_gallery_name    = "$IMAGE_GALLERY_NAME"
+image_definition_name = "$IMAGE_DEFINITION_NAME"
+github_token          = "$GITHUB_TOKEN"
 EOF
   echo "Generated $TFVARS_FILE"
 fi

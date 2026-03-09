@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/game-ci-automation/unity-ci-enabler/internal/azure"
+	"github.com/game-ci-automation/unity-ci-bootstrap/internal/azure"
 )
 
 type mockKeyVaultClient struct {
@@ -55,5 +55,31 @@ func TestUploadLicense_EmptyLicense(t *testing.T) {
 	err := svc.UploadLicense("")
 	if err == nil {
 		t.Fatal("expected error for empty license, got nil")
+	}
+}
+
+func TestUploadWebhookSecret(t *testing.T) {
+	mock := &mockKeyVaultClient{}
+	svc := azure.NewService(mock)
+
+	err := svc.UploadWebhookSecret("my-webhook-secret")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mock.uploadedName != "WEBHOOK-SECRET" {
+		t.Errorf("secret name = %q, want %q", mock.uploadedName, "WEBHOOK-SECRET")
+	}
+	if mock.uploadedValue != "my-webhook-secret" {
+		t.Errorf("secret value = %q, want %q", mock.uploadedValue, "my-webhook-secret")
+	}
+}
+
+func TestUploadWebhookSecret_Empty(t *testing.T) {
+	mock := &mockKeyVaultClient{}
+	svc := azure.NewService(mock)
+
+	err := svc.UploadWebhookSecret("")
+	if err == nil {
+		t.Fatal("expected error for empty secret, got nil")
 	}
 }

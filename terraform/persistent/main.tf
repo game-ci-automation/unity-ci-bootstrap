@@ -96,4 +96,12 @@ resource "azurerm_linux_function_app" "main" {
   storage_account_access_key = azurerm_storage_account.function.primary_access_key
 
   site_config {}
+
+  app_settings = {
+    KEY_VAULT_NAME        = azurerm_key_vault.main.name
+    BATCH_ACCOUNT_NAME    = azurerm_batch_account.main.name
+    IMAGE_GALLERY_NAME    = azurerm_shared_image_gallery.main.name
+    IMAGE_DEFINITION_NAME = azurerm_shared_image.main.name
+    RESOURCE_GROUP_NAME   = azurerm_resource_group.main.name
+  }
 }

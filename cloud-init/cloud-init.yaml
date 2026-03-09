@@ -1,6 +1,6 @@
 #cloud-config
 
-# Unity CI Enabler — VM Setup Script
+# Unity CI Bootstrap — VM Setup Script
 # Runs once on first boot after Terraform provisioning.
 # Sets up a browser-accessible Ubuntu desktop with Docker, noVNC, Git,
 # Unity Hub pre-installed, and a desktop shortcut for easy launch.
@@ -147,12 +147,18 @@ runcmd:
     cat > /home/azureuser/.unity-ci-env << 'ENVEOF'
     FUNCTION_URL=${function_app_url}
     REPO_URL=${repo_url}
+    PLATFORM=${platform}
+    KEY_VAULT_NAME=${key_vault_name}
+    RESOURCE_GROUP_NAME=${resource_group_name}
+    IMAGE_GALLERY_NAME=${image_gallery_name}
+    IMAGE_DEFINITION_NAME=${image_definition_name}
+    GH_TOKEN=${github_token}
     ENVEOF
   - chown azureuser:azureuser /home/azureuser/.unity-ci-env
 
   # --- game-ci downloader CLI ---
   # TODO: Replace with actual GitHub Releases URL after first release is published
-  # - wget -q "https://github.com/game-ci-automation/unity-ci-enabler/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
+  # - wget -q "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
   # - chmod +x /home/azureuser/Desktop/downloader
   # - chown azureuser:azureuser /home/azureuser/Desktop/downloader
 
@@ -167,4 +173,4 @@ runcmd:
   - sleep 2
   - systemctl start novnc
 
-final_message: "Unity CI Enabler VM setup complete. Connect via noVNC at http://<public-ip>:6080"
+final_message: "Unity CI Bootstrap VM setup complete. Connect via noVNC at http://<public-ip>:6080"

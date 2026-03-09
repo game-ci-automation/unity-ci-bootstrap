@@ -122,8 +122,14 @@ resource "azurerm_linux_virtual_machine" "main" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/../../cloud-init/cloud-init.yaml", {
-    function_app_url = var.function_app_url
-    repo_url         = var.repo_url
+    function_app_url      = var.function_app_url
+    repo_url              = var.repo_url
+    platform              = var.platform
+    key_vault_name        = var.key_vault_name
+    resource_group_name   = var.resource_group_name
+    image_gallery_name    = var.image_gallery_name
+    image_definition_name = var.image_definition_name
+    github_token          = var.github_token
   }))
 
   identity {

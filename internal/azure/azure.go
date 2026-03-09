@@ -20,3 +20,10 @@ func (s *Service) UploadLicense(licenseContent string) error {
 	}
 	return s.client.SetSecret("UNITY-LICENSE", licenseContent)
 }
+
+func (s *Service) UploadWebhookSecret(secret string) error {
+	if secret == "" {
+		return fmt.Errorf("webhook secret must not be empty")
+	}
+	return s.client.SetSecret("WEBHOOK-SECRET", secret)
+}

@@ -43,3 +43,24 @@ variable "repo_url" {
   description = "GitHub repository URL (e.g. https://github.com/user/repo)"
   type        = string
 }
+
+variable "platform" {
+  description = "Unity build platform (e.g. WebGL, Android, iOS, StandaloneLinux64, StandaloneWindows64)"
+  type        = string
+}
+
+variable "image_gallery_name" {
+  description = "Name of the Shared Image Gallery (from persistent output)"
+  type        = string
+}
+
+variable "image_definition_name" {
+  description = "Name of the Image Definition (from persistent output)"
+  type        = string
+}
+
+variable "github_token" {
+  description = "GitHub Personal Access Token (repo scope)"
+  type        = string
+  sensitive   = true
+}

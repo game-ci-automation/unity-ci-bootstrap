@@ -112,7 +112,6 @@ resource "azurerm_linux_virtual_machine" "main" {
     caching              = "ReadWrite"
     storage_account_type = "Premium_LRS"
     disk_size_gb         = 128
-    delete_option        = "Delete"
   }
 
   source_image_reference {

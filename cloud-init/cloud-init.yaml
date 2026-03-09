@@ -157,10 +157,9 @@ runcmd:
   - chown azureuser:azureuser /home/azureuser/.unity-ci-env
 
   # --- game-ci downloader CLI ---
-  # TODO: Replace with actual GitHub Releases URL after first release is published
-  # - wget -q "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
-  # - chmod +x /home/azureuser/Desktop/downloader
-  # - chown azureuser:azureuser /home/azureuser/Desktop/downloader
+  - wget -q "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
+  - chmod +x /home/azureuser/Desktop/downloader
+  - chown azureuser:azureuser /home/azureuser/Desktop/downloader
 
   # --- Enable and start display services (noVNC last = ready signal) ---
   - systemctl daemon-reload

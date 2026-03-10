@@ -32,6 +32,12 @@ resource "azurerm_key_vault" "main" {
 
     secret_permissions = ["Get", "Set", "List", "Delete", "Purge"]
   }
+
+  # Prevent Terraform from removing access policies added by separate resources
+  # (e.g. azurerm_key_vault_access_policy.function_app)
+  lifecycle {
+    ignore_changes = [access_policy]
+  }
 }
 
 # --- Shared Image Gallery ---
@@ -110,6 +116,20 @@ resource "azurerm_linux_function_app" "main" {
     BATCH_ACCOUNT_URL = "https://${azurerm_batch_account.main.name}.${azurerm_resource_group.main.location}.batch.azure.com"
     IMAGE_RESOURCE_ID = azurerm_shared_image.main.id
   }
+}
+
+# Grant Function App's Managed Identity data-plane access to Batch Account
+resource "azurerm_role_assignment" "function_batch_contributor" {
+  scope                = azurerm_batch_account.main.id
+  role_definition_name = "Contributor"
+  principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
+}
+
+# Grant Function App's Managed Identity read access to Shared Image Gallery
+resource "azurerm_role_assignment" "function_gallery_reader" {
+  scope                = azurerm_shared_image_gallery.main.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
 }
 
 # Grant Function App's Managed Identity read access to Key Vault secrets

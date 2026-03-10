@@ -98,11 +98,25 @@ resource "azurerm_linux_function_app" "main" {
 
   site_config {}
 
-  app_settings = {
-    KEY_VAULT_NAME        = azurerm_key_vault.main.name
-    BATCH_ACCOUNT_NAME    = azurerm_batch_account.main.name
-    IMAGE_GALLERY_NAME    = azurerm_shared_image_gallery.main.name
-    IMAGE_DEFINITION_NAME = azurerm_shared_image.main.name
-    RESOURCE_GROUP_NAME   = azurerm_resource_group.main.name
+  # Required: Function App uses Managed Identity to access Key Vault and Batch API
+  identity {
+    type = "SystemAssigned"
   }
+
+  # Env vars consumed by the unity-ci-function Go binary (Custom Handler).
+  # See unity-ci-function/cmd/handler/main.go for usage.
+  app_settings = {
+    KEY_VAULT_NAME   = azurerm_key_vault.main.name
+    BATCH_ACCOUNT_URL = "https://${azurerm_batch_account.main.name}.${azurerm_resource_group.main.location}.batch.azure.com"
+    IMAGE_RESOURCE_ID = azurerm_shared_image.main.id
+  }
+}
+
+# Grant Function App's Managed Identity read access to Key Vault secrets
+resource "azurerm_key_vault_access_policy" "function_app" {
+  key_vault_id = azurerm_key_vault.main.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = azurerm_linux_function_app.main.identity[0].principal_id
+
+  secret_permissions = ["Get"]
 }

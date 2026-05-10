@@ -119,6 +119,10 @@ func main() {
 		}
 	}
 
+	// TODO: Kill Unity Hub process before purge — if Unity Hub is still running,
+	//   apt-get purge may fail silently or skip removal.
+	//   Add: exec.Command("killall", "unityhub") before purge.
+
 	// Cleanup: uninstall Unity Hub
 	uninstallCmd := exec.Command("sudo", "apt-get", "purge", "-y", "unityhub")
 	uninstallCmd.Stdout = os.Stdout

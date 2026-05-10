@@ -1,10 +1,14 @@
 #cloud-config
 
-# Unity CI Bootstrap — VM Setup Script
+# =========================
+# -- Unity CI Bootstrap — VM Setup Script
+# =========================
 # Runs once on first boot after Terraform provisioning.
 # Sets up a browser-accessible Ubuntu desktop with Docker, noVNC, Git,
 # Unity Hub pre-installed, and a desktop shortcut for easy launch.
 # noVNC starts last — when port 6080 is reachable, setup is complete.
+#
+# Progress: [STEP N/10] logs are streamed by Terraform during apply.
 
 package_update: true
 package_upgrade: true
@@ -27,19 +31,26 @@ packages:
   - git
   - wget
   - fuse
+  # Suppress interactive prompts during apt installs
+  - debconf-utils
 
 runcmd:
-  # --- Docker Engine ---
+  - echo "========================================"
+  - echo "[STEP 1/10] Installing Docker Engine..."
+  - echo "========================================"
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
   - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
   - apt-get update
-  - apt-get install -y docker-ce docker-ce-cli containerd.io
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
   - usermod -aG docker azureuser
   - systemctl enable docker
   - systemctl start docker
+  - echo "[STEP 1/10] Docker Engine — done."
 
-  # --- Xvfb virtual display service ---
-  - apt-get install -y xvfb
+  - echo "========================================"
+  - echo "[STEP 2/10] Setting up Xvfb virtual display..."
+  - echo "========================================"
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb
   - |
     cat > /etc/systemd/system/xvfb.service << 'EOF'
     [Unit]
@@ -55,8 +66,11 @@ runcmd:
     [Install]
     WantedBy=multi-user.target
     EOF
+  - echo "[STEP 2/10] Xvfb — done."
 
-  # --- XFCE4 desktop session service ---
+  - echo "========================================"
+  - echo "[STEP 3/10] Setting up XFCE4 desktop session..."
+  - echo "========================================"
   - |
     cat > /etc/systemd/system/xfce4-session.service << 'EOF'
     [Unit]
@@ -74,8 +88,11 @@ runcmd:
     [Install]
     WantedBy=multi-user.target
     EOF
+  - echo "[STEP 3/10] XFCE4 session — done."
 
-  # --- x11vnc service ---
+  - echo "========================================"
+  - echo "[STEP 4/10] Setting up x11vnc server..."
+  - echo "========================================"
   - |
     cat > /etc/systemd/system/x11vnc.service << 'EOF'
     [Unit]
@@ -92,8 +109,11 @@ runcmd:
     [Install]
     WantedBy=multi-user.target
     EOF
+  - echo "[STEP 4/10] x11vnc — done."
 
-  # --- noVNC websockify service (port 6080) ---
+  - echo "========================================"
+  - echo "[STEP 5/10] Setting up noVNC websocket proxy..."
+  - echo "========================================"
   - |
     cat > /etc/systemd/system/novnc.service << 'EOF'
     [Unit]
@@ -108,25 +128,34 @@ runcmd:
     [Install]
     WantedBy=multi-user.target
     EOF
-
-  # --- noVNC setup ---
   - mkdir -p /etc/novnc
   - ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+  - echo "[STEP 5/10] noVNC — done."
 
-  # --- GitHub CLI ---
+  - echo "========================================"
+  - echo "[STEP 6/10] Installing GitHub CLI..."
+  - echo "========================================"
   - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
   - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
   - apt-get update
-  - apt-get install -y gh
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y gh
+  - echo "[STEP 6/10] GitHub CLI — done."
 
-  # --- Unity Hub (official apt repo) ---
+  - echo "========================================"
+  - echo "[STEP 7/10] Installing Unity Hub..."
+  - echo "========================================"
+  # Pre-answer Unity Hub's interactive prompt (APT repo question)
+  - echo "unityhub unityhub/repo boolean true" | debconf-set-selections
   - install -d /etc/apt/keyrings
   - curl -fsSL https://hub.unity3d.com/linux/keys/public | gpg --dearmor -o /etc/apt/keyrings/unityhub.gpg
   - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/unityhub.gpg] https://hub.unity3d.com/linux/repos/deb stable main" > /etc/apt/sources.list.d/unityhub.list
   - apt-get update
-  - apt-get install -y unityhub
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y unityhub
+  - echo "[STEP 7/10] Unity Hub — done."
 
-  # --- Desktop folder and Unity Hub shortcut ---
+  - echo "========================================"
+  - echo "[STEP 8/10] Setting up desktop shortcuts and environment..."
+  - echo "========================================"
   - mkdir -p /home/azureuser/Desktop
   - |
     cat > /home/azureuser/Desktop/Unity\ Hub.desktop << 'EOF'
@@ -141,8 +170,7 @@ runcmd:
     EOF
   - chmod +x /home/azureuser/Desktop/Unity\ Hub.desktop
   - chown -R azureuser:azureuser /home/azureuser/Desktop
-
-  # --- Environment variables for downloader ---
+  # Environment variables for downloader
   - |
     cat > /home/azureuser/.unity-ci-env << 'ENVEOF'
     export FUNCTION_URL=${function_app_url}
@@ -155,13 +183,15 @@ runcmd:
     export GH_TOKEN=${github_token}
     ENVEOF
   - chown azureuser:azureuser /home/azureuser/.unity-ci-env
+  - echo "[STEP 8/10] Desktop + environment — done."
 
-  # --- game-ci downloader CLI ---
+  - echo "========================================"
+  - echo "[STEP 9/10] Downloading game-ci downloader + bootstrap script..."
+  - echo "========================================"
   - wget "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
   - chmod +x /home/azureuser/Desktop/downloader
   - chown azureuser:azureuser /home/azureuser/Desktop/downloader
-
-  # --- Bootstrap runner script (waits for license, then runs downloader) ---
+  # Bootstrap runner script (waits for license, then runs downloader)
   - |
     cat > /home/azureuser/Desktop/run-bootstrap.sh << 'SCRIPTEOF'
     #!/usr/bin/env bash
@@ -181,8 +211,7 @@ runcmd:
     SCRIPTEOF
   - chmod +x /home/azureuser/Desktop/run-bootstrap.sh
   - chown azureuser:azureuser /home/azureuser/Desktop/run-bootstrap.sh
-
-  # --- Auto-open terminal with bootstrap script on desktop login ---
+  # Auto-open terminal with bootstrap script on desktop login
   - mkdir -p /home/azureuser/.config/autostart
   - |
     cat > /home/azureuser/.config/autostart/bootstrap-terminal.desktop << 'EOF'
@@ -193,8 +222,11 @@ runcmd:
     X-GNOME-Autostart-enabled=true
     EOF
   - chown -R azureuser:azureuser /home/azureuser/.config
+  - echo "[STEP 9/10] Downloader + bootstrap script — done."
 
-  # --- Enable and start display services (noVNC last = ready signal) ---
+  - echo "========================================"
+  - echo "[STEP 10/10] Starting display services (noVNC last)..."
+  - echo "========================================"
   - systemctl daemon-reload
   - systemctl enable xvfb xfce4-session x11vnc novnc
   - systemctl start xvfb
@@ -204,5 +236,12 @@ runcmd:
   - systemctl start x11vnc
   - sleep 2
   - systemctl start novnc
+  - echo "[STEP 10/10] All services started — noVNC ready on port 6080."
+
+  - echo "========================================"
+  - echo "  BOOTSTRAP VM SETUP COMPLETE"
+  - PUBLIC_IP=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text")
+  - 'echo "  Connect via noVNC at http://$PUBLIC_IP:6080"'
+  - echo "========================================"
 
 final_message: "Unity CI Bootstrap VM setup complete. Connect via noVNC at http://<public-ip>:6080"

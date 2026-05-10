@@ -137,6 +137,34 @@ resource "azurerm_linux_virtual_machine" "main" {
   }
 }
 
+# =========================
+# -- Cloud-init Progress Monitor
+# =========================
+# After VM creation, SSH in and stream cloud-init logs in real time.
+# terraform apply will show [STEP 1/10] ~ [STEP 10/10] in the terminal.
+# Exits automatically when "BOOTSTRAP VM SETUP COMPLETE" appears.
+
+resource "null_resource" "cloud_init_monitor" {
+  depends_on = [azurerm_linux_virtual_machine.main]
+
+  connection {
+    type     = "ssh"
+    host     = azurerm_public_ip.main.ip_address
+    user     = var.admin_username
+    password = var.admin_password
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "tail -f /var/log/cloud-init-output.log | sed '/SETUP COMPLETE/q'",
+      "echo ''",
+      "echo '========================================'",
+      "echo '  noVNC ready: http://${azurerm_public_ip.main.ip_address}:6080'",
+      "echo '========================================'"
+    ]
+  }
+}
+
 # Key Vault access policy for VM managed identity
 resource "azurerm_key_vault_access_policy" "vm" {
   key_vault_id = data.azurerm_key_vault.main.id

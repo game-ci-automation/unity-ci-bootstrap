@@ -203,10 +203,12 @@ resource "azurerm_linux_function_app" "main" {
 #
 # Function App's Managed Identity (principal_id) gets the minimum permissions needed.
 
-# Batch Account: Contributor — allows creating Jobs and autoPools
-resource "azurerm_role_assignment" "function_batch_contributor" {
+# Batch Account: narrowed from Contributor to Azure Batch Data Contributor.
+# Function App only needs to create Jobs (with autoPool) and Tasks.
+# Does NOT need to modify Batch Account settings or delete the account.
+resource "azurerm_role_assignment" "function_batch" {
   scope                = azurerm_batch_account.main.id
-  role_definition_name = "Contributor"
+  role_definition_name = "Azure Batch Data Contributor"
   principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
 }
 

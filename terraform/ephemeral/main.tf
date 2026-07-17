@@ -165,11 +165,12 @@ resource "null_resource" "cloud_init_monitor" {
   }
 }
 
-# Key Vault access policy for VM managed identity
-resource "azurerm_key_vault_access_policy" "vm" {
-  key_vault_id = data.azurerm_key_vault.main.id
-  tenant_id    = azurerm_linux_virtual_machine.main.identity[0].tenant_id
-  object_id    = azurerm_linux_virtual_machine.main.identity[0].principal_id
-
-  secret_permissions = ["Get", "Set", "List"]
+# Key Vault RBAC for VM managed identity.
+# VM needs to read + write secrets (upload UNITY-LICENSE and WEBHOOK-SECRET).
+# Uses Key Vault Secrets Officer (read + write + delete) via RBAC.
+# This identity is auto-destroyed when capture.sh deletes the VM.
+resource "azurerm_role_assignment" "vm_keyvault" {
+  scope                = data.azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = azurerm_linux_virtual_machine.main.identity[0].principal_id
 }

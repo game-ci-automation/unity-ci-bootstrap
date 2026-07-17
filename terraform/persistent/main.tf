@@ -69,22 +69,10 @@ resource "azurerm_key_vault" "main" {
   tenant_id           = data.azurerm_client_config.current.tenant_id
   sku_name            = "standard"
 
-  # Admin access for the operator (current az login user)
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = data.azurerm_client_config.current.object_id
-
-    secret_permissions = ["Get", "Set", "List", "Delete", "Purge"]
-  }
-
-  # TODO: Remove inline access_policy and lifecycle hack.
-  #   Move operator policy to a separate azurerm_key_vault_access_policy resource
-  #   (same as function_app below). Then lifecycle block is no longer needed.
-  #
-  # Prevent Terraform from removing access policies added by separate resources
-  lifecycle {
-    ignore_changes = [access_policy]
-  }
+  # Use Azure RBAC for authorization instead of access_policy.
+  # This eliminates the inline access_policy vs separate resource conflict,
+  # and the lifecycle { ignore_changes } hack is no longer needed.
+  enable_rbac_authorization = true
 }
 
 # =========================
@@ -209,7 +197,7 @@ resource "azurerm_linux_function_app" "main" {
 # =========================
 # Each permission was discovered through runtime errors, not pre-granted:
 #   1. 403 PermissionDenied → added Batch Contributor
-#   2. 502 BadGateway       → fixed Key Vault policy conflict (lifecycle above)
+#   2. 502 BadGateway       → fixed Key Vault policy conflict (policy since replaced by RBAC)
 #   3. 400 InsufficientPermissions → added Gallery Reader
 #   4. 202 success
 #
@@ -229,11 +217,18 @@ resource "azurerm_role_assignment" "function_gallery_reader" {
   principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
 }
 
-# Key Vault: Get only — reads WEBHOOK-SECRET at startup. Cannot write or delete.
-resource "azurerm_key_vault_access_policy" "function_app" {
-  key_vault_id = azurerm_key_vault.main.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = azurerm_linux_function_app.main.identity[0].principal_id
+# Key Vault: Secret read only — reads WEBHOOK-SECRET at startup.
+# Uses RBAC (Key Vault Secrets User) instead of access_policy.
+# Cannot write, delete, or manage secrets.
+resource "azurerm_role_assignment" "function_keyvault_reader" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
+}
 
-  secret_permissions = ["Get"]
+# Operator: full secret management (create, read, update, delete secrets)
+resource "azurerm_role_assignment" "operator_keyvault_admin" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
 }

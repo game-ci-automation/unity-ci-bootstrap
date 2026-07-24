@@ -6,7 +6,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
-TF_DIR="$REPO_ROOT/terraform/persistent"
+TF_DIR="$REPO_ROOT/terraform/azure/persistent"
 
 # Create .env from .env.example if it doesn't exist
 if [ ! -f "$ENV_FILE" ]; then
@@ -39,7 +39,7 @@ update_env "IMAGE_DEFINITION_NAME" "$(terraform output -raw image_definition_nam
 echo ".env updated with terraform outputs."
 
 # --- Generate terraform.tfvars for ephemeral ---
-TFVARS_FILE="$REPO_ROOT/terraform/ephemeral/terraform.tfvars"
+TFVARS_FILE="$REPO_ROOT/terraform/azure/ephemeral/terraform.tfvars"
 
 read_env() {
   grep "^${1}=" "$ENV_FILE" | cut -d'=' -f2-

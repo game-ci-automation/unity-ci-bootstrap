@@ -19,10 +19,9 @@ package-lock.json
 npm-debug.log*
 logs/
 
-# Environment variables
-.env
-.env.local
-.env.*.local
+# Environment variables — ignore all real env files, keep the examples
+.env*
+!.env*.example
 
 # OS
 .DS_Store

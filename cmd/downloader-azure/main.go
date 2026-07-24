@@ -8,12 +8,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 
 	"github.com/game-ci-automation/unity-ci-bootstrap/internal/azure"
+	"github.com/game-ci-automation/unity-ci-bootstrap/internal/cloud"
 	"github.com/game-ci-automation/unity-ci-bootstrap/internal/docker"
 	"github.com/game-ci-automation/unity-ci-bootstrap/internal/github"
+	"github.com/game-ci-automation/unity-ci-bootstrap/internal/license"
 	"github.com/game-ci-automation/unity-ci-bootstrap/internal/validator"
 )
 
@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Read license file from VM
-	licenseContent, err := readLicenseFile()
+	licenseContent, err := license.Read()
 	if err != nil {
 		log.Fatalf("failed to read license file: %v", err)
 	}
@@ -82,7 +82,8 @@ func main() {
 		log.Fatalf("failed to create Azure Key Vault client: %v", err)
 	}
 	azSvc := azure.NewService(azClient)
-	if err := azSvc.UploadLicense(licenseContent); err != nil {
+	var store cloud.SecretStore = azSvc
+	if err := store.UploadLicense(licenseContent); err != nil {
 		log.Fatalf("failed to upload license to Key Vault: %v", err)
 	}
 	fmt.Println("License uploaded to Azure Key Vault.")
@@ -113,7 +114,7 @@ func main() {
 	fmt.Println("GitHub webhook registered.")
 
 	// Cleanup: delete license files from VM
-	for _, p := range licensePaths() {
+	for _, p := range license.Paths() {
 		if err := os.Remove(p); err == nil {
 			fmt.Printf("Deleted license file: %s\n", p)
 		}
@@ -149,39 +150,4 @@ func generateSecret(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
-}
-
-func readLicenseFile() (string, error) {
-	for _, p := range licensePaths() {
-		data, err := os.ReadFile(p)
-		if err == nil {
-			return string(data), nil
-		}
-	}
-	return "", fmt.Errorf("license file not found; looked in: %v", licensePaths())
-}
-
-func licensePaths() []string {
-	home, _ := os.UserHomeDir()
-	return licensePathsForOS(runtime.GOOS, home)
-}
-
-func licensePathsForOS(goos, homeDir string) []string {
-	switch goos {
-	case "windows":
-		return []string{
-			`C:\ProgramData\Unity\Unity_lic.ulf`,
-			`C:\ProgramData\Unity\Unity_lic.xml`,
-		}
-	case "darwin":
-		return []string{
-			"/Library/Application Support/Unity/Unity_lic.ulf",
-			"/Library/Application Support/Unity/Unity_lic.xml",
-		}
-	default: // linux
-		return []string{
-			filepath.Join(homeDir, ".config/unity3d/Unity/licenses/UnityEntitlementLicense.xml"), // Unity 6+
-			filepath.Join(homeDir, ".local/share/unity3d/Unity/Unity_lic.ulf"),                   // pre-Unity 6
-		}
-	}
 }

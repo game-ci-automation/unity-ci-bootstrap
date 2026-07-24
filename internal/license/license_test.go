@@ -1,13 +1,15 @@
-package main
+package license_test
 
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/game-ci-automation/unity-ci-bootstrap/internal/license"
 )
 
-func TestLicensePathsForOS_Linux_Unity6(t *testing.T) {
+func TestPathsForOS_Linux_Unity6(t *testing.T) {
 	home := "/home/azureuser"
-	paths := licensePathsForOS("linux", home)
+	paths := license.PathsForOS("linux", home)
 
 	want := filepath.Join(home, ".config/unity3d/Unity/licenses/UnityEntitlementLicense.xml")
 	for _, p := range paths {
@@ -18,9 +20,9 @@ func TestLicensePathsForOS_Linux_Unity6(t *testing.T) {
 	t.Errorf("expected Unity 6+ path %q not found in %v", want, paths)
 }
 
-func TestLicensePathsForOS_Linux_PreUnity6(t *testing.T) {
+func TestPathsForOS_Linux_PreUnity6(t *testing.T) {
 	home := "/home/azureuser"
-	paths := licensePathsForOS("linux", home)
+	paths := license.PathsForOS("linux", home)
 
 	want := filepath.Join(home, ".local/share/unity3d/Unity/Unity_lic.ulf")
 	for _, p := range paths {
@@ -31,8 +33,8 @@ func TestLicensePathsForOS_Linux_PreUnity6(t *testing.T) {
 	t.Errorf("expected pre-Unity 6 path %q not found in %v", want, paths)
 }
 
-func TestLicensePathsForOS_Windows(t *testing.T) {
-	paths := licensePathsForOS("windows", "")
+func TestPathsForOS_Windows(t *testing.T) {
+	paths := license.PathsForOS("windows", "")
 
 	want := `C:\ProgramData\Unity\Unity_lic.ulf`
 	for _, p := range paths {
@@ -43,8 +45,8 @@ func TestLicensePathsForOS_Windows(t *testing.T) {
 	t.Errorf("expected path %q not found in %v", want, paths)
 }
 
-func TestLicensePathsForOS_Darwin(t *testing.T) {
-	paths := licensePathsForOS("darwin", "")
+func TestPathsForOS_Darwin(t *testing.T) {
+	paths := license.PathsForOS("darwin", "")
 
 	want := "/Library/Application Support/Unity/Unity_lic.ulf"
 	for _, p := range paths {

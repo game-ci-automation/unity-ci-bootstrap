@@ -62,7 +62,7 @@ fi
 
 echo ""
 echo "=== Step 5/5: Destroy ephemeral infrastructure ==="
-cd "$REPO_ROOT/terraform/ephemeral"
+cd "$REPO_ROOT/terraform/azure/ephemeral"
 terraform destroy -auto-approve -var="github_token=dummy"
 echo "Ephemeral resources destroyed."
 

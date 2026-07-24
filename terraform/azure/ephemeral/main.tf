@@ -121,7 +121,7 @@ resource "azurerm_linux_virtual_machine" "main" {
     version   = "latest"
   }
 
-  custom_data = base64encode(templatefile("${path.module}/../../cloud-init/cloud-init.yaml", {
+  custom_data = base64encode(templatefile("${path.module}/../../../cloud-init/cloud-init.yaml", {
     function_app_url      = var.function_app_url
     repo_url              = var.repo_url
     platform              = var.platform

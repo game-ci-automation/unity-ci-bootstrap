@@ -4,7 +4,7 @@
 # Values exported after `terraform apply`.
 # Used by:
 #   - sync-env.sh: reads these via `terraform output -raw <name>` → writes to .env
-#   - .env → terraform/ephemeral/terraform.tfvars (ephemeral VM needs these values)
+#   - .env → terraform/azure/ephemeral/terraform.tfvars (ephemeral VM needs these values)
 #
 # These are NOT secrets — they're resource names/URLs that other components need.
 

@@ -188,7 +188,7 @@ runcmd:
   - echo "========================================"
   - echo "[STEP 9/10] Downloading game-ci downloader + bootstrap script..."
   - echo "========================================"
-  - wget "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-linux-amd64" -O /home/azureuser/Desktop/downloader
+  - wget "https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-azure-linux-amd64" -O /home/azureuser/Desktop/downloader
   - chmod +x /home/azureuser/Desktop/downloader
   - chown azureuser:azureuser /home/azureuser/Desktop/downloader
   # Bootstrap runner script (waits for license, then runs downloader)

@@ -1,0 +1,293 @@
+#cloud-config
+
+# =========================
+# -- Unity CI Bootstrap — VM Setup Template (cloud-agnostic)
+# =========================
+# Single template for all clouds; per-cloud differences are injected by
+# terraform/<cloud>/ephemeral via templatefile():
+#   vm_user          — desktop user (azureuser / gcpuser)
+#   create_user      — true where no platform mechanism creates the user (GCP)
+#   install_gh       — gh CLI, Azure legacy webhook flow only
+#   env_exports      — cloud-specific env for the downloader binary
+#   downloader_fetch — command that places the downloader at ~/Desktop/downloader
+#   public_ip_probe  — cloud metadata command printing the external IP
+#
+# Sets up a browser-accessible Ubuntu desktop with Docker, noVNC, and
+# Unity Hub. noVNC starts last — port 6080 reachable = setup complete.
+
+package_update: true
+package_upgrade: true
+
+%{ if create_user ~}
+users:
+  - default
+  - name: ${vm_user}
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+
+%{ endif ~}
+packages:
+  # Desktop environment (lightweight)
+  - xfce4
+  - xfce4-goodies
+  # VNC + browser access
+  - x11vnc
+  - novnc
+  - websockify
+  # Docker dependencies
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  # Utilities
+  - git
+  - wget
+  - fuse
+  # Suppress interactive prompts during apt installs
+  - debconf-utils
+
+runcmd:
+  - echo "========================================"
+  - echo "[STEP] Installing Docker Engine..."
+  - echo "========================================"
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
+  - usermod -aG docker ${vm_user}
+  - systemctl enable docker
+  - systemctl start docker
+  - echo "[STEP] Docker Engine — done."
+
+  - echo "========================================"
+  - echo "[STEP] Removing screen lockers..."
+  - echo "========================================"
+  # xfce4-goodies pulls in a screensaver that locks the desktop on idle.
+  # gcpuser has no password (lock_passwd) — a lock would be unrecoverable
+  # from the VNC side. The VNC password is the session's auth boundary.
+  - DEBIAN_FRONTEND=noninteractive apt-get purge -y xfce4-screensaver light-locker xscreensaver || true
+  - echo "[STEP] Screen lockers removed."
+
+  - echo "========================================"
+  - echo "[STEP] Setting up Xvfb virtual display..."
+  - echo "========================================"
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb
+  - |
+    cat > /etc/systemd/system/xvfb.service << 'EOF'
+    [Unit]
+    Description=Xvfb Virtual Display
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=${vm_user}
+    ExecStart=/usr/bin/Xvfb :1 -screen 0 1920x1080x24
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+  - echo "[STEP] Xvfb — done."
+
+  - echo "========================================"
+  - echo "[STEP] Setting up XFCE4 desktop session..."
+  - echo "========================================"
+  - |
+    cat > /etc/systemd/system/xfce4-session.service << 'EOF'
+    [Unit]
+    Description=XFCE4 Desktop Session
+    After=xvfb.service
+    Requires=xvfb.service
+
+    [Service]
+    Type=simple
+    User=${vm_user}
+    Environment=DISPLAY=:1
+    ExecStart=/usr/bin/startxfce4
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+  - echo "[STEP] XFCE4 session — done."
+
+  - echo "========================================"
+  - echo "[STEP] Setting up x11vnc server (password-protected)..."
+  - echo "========================================"
+  # VNC password: noVNC prompts for it on Connect. Value comes from
+  # ADMIN_PASSWORD via terraform (vnc_password template var).
+  - x11vnc -storepasswd '${vnc_password}' /etc/x11vnc.pass
+  - chown ${vm_user}:${vm_user} /etc/x11vnc.pass
+  - chmod 600 /etc/x11vnc.pass
+  - |
+    cat > /etc/systemd/system/x11vnc.service << 'EOF'
+    [Unit]
+    Description=x11vnc VNC Server
+    After=xfce4-session.service
+
+    [Service]
+    Type=simple
+    User=${vm_user}
+    Environment=DISPLAY=:1
+    ExecStart=/usr/bin/x11vnc -display :1 -rfbauth /etc/x11vnc.pass -listen localhost -xkb -forever
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+  - echo "[STEP] x11vnc — done."
+
+  - echo "========================================"
+  - echo "[STEP] Setting up noVNC websocket proxy..."
+  - echo "========================================"
+  - |
+    cat > /etc/systemd/system/novnc.service << 'EOF'
+    [Unit]
+    Description=noVNC WebSocket Proxy
+    After=x11vnc.service
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/bin/websockify --web /usr/share/novnc 6080 localhost:5900
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+  - mkdir -p /etc/novnc
+  - ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+  - echo "[STEP] noVNC — done."
+
+%{ if install_gh ~}
+  - echo "========================================"
+  - echo "[STEP] Installing GitHub CLI..."
+  - echo "========================================"
+  - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y gh
+  - echo "[STEP] GitHub CLI — done."
+
+%{ endif ~}
+  - echo "========================================"
+  - echo "[STEP] Installing Firefox (Unity Hub sign-in opens the system browser)..."
+  - echo "========================================"
+  # Unity Hub's Sign in launches the default web browser for Unity ID OAuth;
+  # without one it fails with "Failed to execute default web browser".
+  # Must be the deb build (Mozilla PPA), NOT the Ubuntu snap: our XFCE session
+  # is a plain systemd service (no logind session, no /run/user/<uid>), and
+  # snap-confined apps refuse to start there ("not a snap cgroup").
+  - add-apt-repository -y ppa:mozillateam/ppa
+  - |
+    printf 'Package: firefox*\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001\n' > /etc/apt/preferences.d/mozilla-firefox
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y firefox
+  - mkdir -p /home/${vm_user}/.config/xfce4
+  - echo "WebBrowser=firefox" > /home/${vm_user}/.config/xfce4/helpers.rc
+  - echo "[STEP] Firefox — done."
+
+  - echo "========================================"
+  - echo "[STEP] Installing Unity Hub..."
+  - echo "========================================"
+  # Pre-answer Unity Hub's interactive prompt (APT repo question)
+  - echo "unityhub unityhub/repo boolean true" | debconf-set-selections
+  - install -d /etc/apt/keyrings
+  - curl -fsSL https://hub.unity3d.com/linux/keys/public | gpg --dearmor -o /etc/apt/keyrings/unityhub.gpg
+  - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/unityhub.gpg] https://hub.unity3d.com/linux/repos/deb stable main" > /etc/apt/sources.list.d/unityhub.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y unityhub
+  - echo "[STEP] Unity Hub — done."
+
+  - echo "========================================"
+  - echo "[STEP] Setting up desktop shortcuts and environment..."
+  - echo "========================================"
+  - mkdir -p /home/${vm_user}/Desktop
+  - |
+    cat > /home/${vm_user}/Desktop/Unity\ Hub.desktop << 'EOF'
+    [Desktop Entry]
+    Version=1.0
+    Type=Application
+    Name=Unity Hub
+    Exec=env DISPLAY=:1 /usr/bin/unityhub --no-sandbox --disable-gpu
+    Icon=unityhub
+    Terminal=false
+    Categories=Development;
+    EOF
+  - chmod +x /home/${vm_user}/Desktop/Unity\ Hub.desktop
+  - chown -R ${vm_user}:${vm_user} /home/${vm_user}/Desktop
+  # Environment variables for the downloader (cloud-specific set)
+  - |
+    cat > /home/${vm_user}/.unity-ci-env << 'ENVEOF'
+    ${indent(4, chomp(env_exports))}
+    ENVEOF
+  - chown ${vm_user}:${vm_user} /home/${vm_user}/.unity-ci-env
+  - echo "[STEP] Desktop + environment — done."
+
+  - echo "========================================"
+  - echo "[STEP] Fetching downloader + bootstrap script..."
+  - echo "========================================"
+  - ${downloader_fetch}
+  - chmod +x /home/${vm_user}/Desktop/downloader
+  - chown ${vm_user}:${vm_user} /home/${vm_user}/Desktop/downloader
+  # Bootstrap runner script: polls for the license file instead of waiting
+  # for Enter — no user input to mis-press, downloader starts automatically.
+  # License paths must stay in sync with internal/license/license.go.
+  - |
+    cat > /home/${vm_user}/Desktop/run-bootstrap.sh << 'SCRIPTEOF'
+    #!/usr/bin/env bash
+    source ~/.unity-ci-env
+
+    echo "========================================"
+    echo "  Unity CI Bootstrap"
+    echo "========================================"
+    echo ""
+    echo "Open Unity Hub (desktop icon) and activate your license."
+    echo "The downloader starts automatically once the license is detected."
+    echo ""
+    while true; do
+      if [ -f "$HOME/.config/unity3d/Unity/licenses/UnityEntitlementLicense.xml" ] || [ -f "$HOME/.local/share/unity3d/Unity/Unity_lic.ulf" ]; then
+        echo "License detected — starting downloader..."
+        ~/Desktop/downloader
+        break
+      fi
+      sleep 5
+    done
+    SCRIPTEOF
+  - chmod +x /home/${vm_user}/Desktop/run-bootstrap.sh
+  - chown ${vm_user}:${vm_user} /home/${vm_user}/Desktop/run-bootstrap.sh
+  # Auto-open terminal with bootstrap script on desktop login
+  - mkdir -p /home/${vm_user}/.config/autostart
+  - |
+    cat > /home/${vm_user}/.config/autostart/bootstrap-terminal.desktop << 'EOF'
+    [Desktop Entry]
+    Type=Application
+    Name=Bootstrap Terminal
+    Exec=xfce4-terminal --maximize --hold -e "bash /home/${vm_user}/Desktop/run-bootstrap.sh"
+    X-GNOME-Autostart-enabled=true
+    EOF
+  - chown -R ${vm_user}:${vm_user} /home/${vm_user}/.config
+  - echo "[STEP] Downloader + bootstrap script — done."
+
+  - echo "========================================"
+  - echo "[STEP] Starting display services (noVNC last)..."
+  - echo "========================================"
+  - systemctl daemon-reload
+  - systemctl enable xvfb xfce4-session x11vnc novnc
+  - systemctl start xvfb
+  - sleep 2
+  - systemctl start xfce4-session
+  - sleep 3
+  - systemctl start x11vnc
+  - sleep 2
+  - systemctl start novnc
+  - echo "[STEP] All services started — noVNC ready on port 6080."
+
+  - echo "========================================"
+  - echo "  BOOTSTRAP VM SETUP COMPLETE"
+  - PUBLIC_IP=$(${public_ip_probe})
+  - 'echo "  Connect via noVNC at http://$PUBLIC_IP:6080"'
+  - echo "========================================"
+
+final_message: "Unity CI Bootstrap VM setup complete. Connect via noVNC at http://<public-ip>:6080"

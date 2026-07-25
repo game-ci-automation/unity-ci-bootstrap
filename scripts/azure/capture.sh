@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # capture.sh — Captures VM image to gallery, deletes VM, and destroys ephemeral infra.
 # Run from repo root after downloader completes on the VM.
-# Usage: ./scripts/capture.sh
+# Usage: ./scripts/azure/capture.sh
 
 set -euo pipefail
 
 # Prevent Git Bash (MINGW64) from converting /subscriptions/... to Windows paths
 export MSYS_NO_PATHCONV=1
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo "Error: .env not found. Run scripts/sync-env.sh first."
+  echo "Error: .env not found. Run scripts/azure/sync-env.sh first."
   exit 1
 fi
 

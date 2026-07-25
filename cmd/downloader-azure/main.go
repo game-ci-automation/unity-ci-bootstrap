@@ -139,7 +139,7 @@ func main() {
 	fmt.Println("=== Bootstrap Complete ===")
 	fmt.Println("Run this from your local machine (repo root):")
 	fmt.Println()
-	fmt.Println("  bash scripts/capture.sh")
+	fmt.Println("  bash scripts/azure/capture.sh")
 	fmt.Println()
 	fmt.Println("This will: deallocate VM → capture image → delete VM → destroy ephemeral infra")
 }

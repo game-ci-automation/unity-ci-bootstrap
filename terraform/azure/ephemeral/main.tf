@@ -121,15 +121,24 @@ resource "azurerm_linux_virtual_machine" "main" {
     version   = "latest"
   }
 
-  custom_data = base64encode(templatefile("${path.module}/../../../cloud-init/cloud-init.yaml", {
-    function_app_url      = var.function_app_url
-    repo_url              = var.repo_url
-    platform              = var.platform
-    key_vault_name        = var.key_vault_name
-    resource_group_name   = var.resource_group_name
-    image_gallery_name    = var.image_gallery_name
-    image_definition_name = var.image_definition_name
-    github_token          = var.github_token
+  # Shared cloud-init template; Azure-specific bits injected as variables.
+  custom_data = base64encode(templatefile("${path.module}/../../../cloud-init/bootstrap.yaml", {
+    vm_user      = var.admin_username
+    create_user  = false # osProfile above creates the admin user
+    install_gh   = true  # legacy webhook registration flow uses gh CLI
+    vnc_password = var.admin_password
+    env_exports = <<-EOT
+      export FUNCTION_URL=${var.function_app_url}
+      export REPO_URL=${var.repo_url}
+      export PLATFORM=${var.platform}
+      export KEY_VAULT_NAME=${var.key_vault_name}
+      export RESOURCE_GROUP_NAME=${var.resource_group_name}
+      export IMAGE_GALLERY_NAME=${var.image_gallery_name}
+      export IMAGE_DEFINITION_NAME=${var.image_definition_name}
+      export GH_TOKEN=${var.github_token}
+    EOT
+    downloader_fetch = "wget \"https://github.com/game-ci-automation/unity-ci-bootstrap/releases/latest/download/downloader-azure-linux-amd64\" -O /home/${var.admin_username}/Desktop/downloader"
+    public_ip_probe  = "curl -s -H Metadata:true \"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text\""
   }))
 
   identity {

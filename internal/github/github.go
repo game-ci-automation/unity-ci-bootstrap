@@ -1,15 +1,17 @@
 package github
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"strings"
 )
 
 // GHCLI abstracts the GitHub CLI for testability.
+// Only the webhook registration flow (Azure legacy) needs it.
 type GHCLI interface {
 	Run(args ...string) (string, error)
 }
@@ -23,38 +25,85 @@ func (r *RealGHCLI) Run(args ...string) (string, error) {
 	return string(out), err
 }
 
-// Client uses gh CLI to interact with GitHub.
+// FileFetcher abstracts a plain HTTP file fetch for testability.
+// Authenticated reports whether requests carry a token — callers pick the
+// endpoint accordingly (see FetchUnityVersion).
+type FileFetcher interface {
+	Fetch(url string) (string, error)
+	Authenticated() bool
+}
+
+// HTTPFetcher fetches with net/http. Token is optional: empty works for
+// public repos; set it (GitHub PAT) to reach private repos.
+type HTTPFetcher struct {
+	Token string
+}
+
+func (h *HTTPFetcher) Authenticated() bool {
+	return h.Token != ""
+}
+
+func (h *HTTPFetcher) Fetch(rawURL string) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", err
+	}
+	if h.Token != "" {
+		req.Header.Set("Authorization", "token "+h.Token)
+		// Makes the GitHub contents API return the file body directly.
+		req.Header.Set("Accept", "application/vnd.github.raw")
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GET %s: %s", rawURL, resp.Status)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+// Client interacts with GitHub.
 type Client struct {
-	gh GHCLI
+	gh      GHCLI
+	fetcher FileFetcher
 }
 
-// NewClient creates a Client using the real gh CLI.
+// NewClient creates a Client with the real gh CLI and HTTP fetcher.
+// GITHUB_TOKEN (or GH_TOKEN, the gh CLI convention used on the Azure VM)
+// is picked up when present — optional, only needed for private repos.
 func NewClient() *Client {
-	return &Client{gh: &RealGHCLI{}}
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		token = os.Getenv("GH_TOKEN")
+	}
+	return &Client{gh: &RealGHCLI{}, fetcher: &HTTPFetcher{Token: token}}
 }
 
-// FetchUnityVersion reads ProjectSettings/ProjectVersion.txt from a GitHub repo
-// and returns the parsed Unity version.
+// FetchUnityVersion reads ProjectSettings/ProjectVersion.txt from the repo's
+// default branch. No gh CLI — plain HTTP either way:
+//   - no token  → raw.githubusercontent.com anonymously (public repos).
+//     NOTE: a token must NOT be sent here — raw.githubusercontent rejects
+//     fine-grained PATs and turns public fetches into 404s.
+//   - token set → GitHub contents API (works for private repos and accepts
+//     fine-grained PATs; Accept header makes it return the raw body).
 func (c *Client) FetchUnityVersion(owner, repo string) (string, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/contents/ProjectSettings/ProjectVersion.txt", owner, repo)
-	output, err := c.gh.Run("api", endpoint)
+	var fileURL string
+	if c.fetcher.Authenticated() {
+		fileURL = fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/ProjectSettings/ProjectVersion.txt", owner, repo)
+	} else {
+		fileURL = fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/HEAD/ProjectSettings/ProjectVersion.txt", owner, repo)
+	}
+	content, err := c.fetcher.Fetch(fileURL)
 	if err != nil {
-		return "", fmt.Errorf("gh api failed: %w", err)
+		return "", fmt.Errorf("fetch ProjectVersion.txt: %w", err)
 	}
-
-	var resp struct {
-		Content string `json:"content"`
-	}
-	if err := json.Unmarshal([]byte(output), &resp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(resp.Content)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode content: %w", err)
-	}
-
-	return ParseUnityVersion(string(decoded))
+	return ParseUnityVersion(content)
 }
 
 // ParseUnityVersion extracts the Unity editor version from ProjectVersion.txt content.

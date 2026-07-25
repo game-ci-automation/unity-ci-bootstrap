@@ -144,7 +144,7 @@ resource "azurerm_storage_account" "function" {
 # =========================
 # -- Function App (Service Plan + App)
 # =========================
-# Hosts the Go webhook handler (unity-ci-function repo).
+# Hosts the Go webhook handler (unity-ci-orchestration repo).
 # Y1 = Consumption Plan: pay per execution, $0 when idle.
 # Code is NOT deployed here — deploy.sh does that separately.
 
@@ -156,7 +156,7 @@ resource "azurerm_service_plan" "function" {
   sku_name            = "Y1"   # Consumption Plan — pay per execution, free tier available
 }
 
-# The actual Function App. Created empty — unity-ci-function repo's deploy.sh
+# The actual Function App. Created empty — unity-ci-orchestration repo's deploy.sh
 # uploads the Go binary later.
 #
 # identity { type = "SystemAssigned" }:
